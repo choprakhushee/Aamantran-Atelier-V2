@@ -1,4 +1,5 @@
-// Renders each concept frame HTML to PNG. Usage: node render.mjs [name ...]
+// Renders each concept frame HTML to PNG.
+// Usage: node render.mjs [spec ...], where spec is name[?query][@WxH], e.g. A-parat-v2?shot=2 or A-parat-v2?shot=1@390x844
 import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -20,14 +21,17 @@ const names = process.argv.slice(2).length ? process.argv.slice(2)
   : fs.readdirSync(path.join(root, 'frames')).filter(f => f.endsWith('.html')).map(f => f.replace('.html', ''));
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 fs.mkdirSync(path.join(root, 'out'), { recursive: true });
-for (const name of names) {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+for (const spec of names) {
+  const [, name, query = '', w = 1600, h = 900] = spec.match(/^([^?@]+)(\?[^@]*)?(?:@(\d+)x(\d+))?$/);
+  const out = name + query.replace(/[?&=]/g, '-') + (spec.includes('@') ? `-${w}x${h}` : '');
+  const mobile = +w < 800;
+  const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: mobile ? 2 : 1 });
   page.on('console', m => console.log(`[${name}]`, m.text()));
   page.on('pageerror', e => console.log(`[${name}] ERROR`, e.message));
-  await page.goto(`http://localhost:${port}/frames/${name}.html`);
+  await page.goto(`http://localhost:${port}/frames/${name}.html${query}`);
   await page.waitForFunction('window.__ready === true', null, { timeout: 120000 });
-  await page.screenshot({ path: path.join(root, 'out', `${name}.png`) });
-  console.log('rendered', name);
+  await page.screenshot({ path: path.join(root, 'out', `${out}.png`) });
+  console.log('rendered', out);
   await page.close();
 }
 await browser.close();
