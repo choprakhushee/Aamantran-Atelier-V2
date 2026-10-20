@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Do Aangan — frame</title>
+<link rel="stylesheet" href="../assets/frame.css">
+<script src="../node_modules/d3-array/dist/d3-array.min.js"></script>
+<script src="../node_modules/d3-geo/dist/d3-geo.min.js"></script>
+<script src="../node_modules/topojson-client/dist/topojson-client.min.js"></script>
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+<style>
+  .place{position:absolute;font:400 11px/1 var(--font-sans);letter-spacing:.34em;text-transform:uppercase;color:var(--linen);text-shadow:0 1px 8px #000;white-space:nowrap}
+  .place span{display:block;margin-top:6px;font:400 15px/1 var(--font-deva);letter-spacing:0;color:var(--gold)}
+</style></head>
+<body><div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="vignette"></div><div class="grain"></div>
+  <div class="line" style="top:auto;bottom:96px;left:auto;right:110px;width:620px;text-align:right">
+    <div class="kicker" style="padding-left:0">Aamantran — an invitation</div>
+    <div class="say">An invitation is the first thing a family<br>sends <em>out into the world.</em></div>
+  </div>
+  <div class="slate"><b>02 · Do Aangan</b> &nbsp;—&nbsp; shot 3 · the spark leaves Jaipur</div>
+  <div class="scrub"><i style="width:27%"></i></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { rng } from '../assets/art.js';
+
+await document.fonts.load('15px "Tiro Devanagari Hindi"');
+const world = await (await fetch('../node_modules/world-atlas/countries-50m.json')).json();
+const countries = topojson.feature(world, world.objects.countries);
+const india = countries.features.find(f => f.id === '356');
+
+// --- Night-earth texture, drawn equirectangular so it wraps a sphere. ---
+const TW = 8192, TH = 4096, tex = document.createElement('canvas'); tex.width = TW; tex.height = TH;
+const g = tex.getContext('2d');
+const proj = d3.geoEquirectangular().scale(TW / (2 * Math.PI)).translate([TW / 2, TH / 2]);
+const path = d3.geoPath(proj, g);
+g.fillStyle = '#04090b'; g.fillRect(0, 0, TW, TH);
+g.fillStyle = '#0b1411'; g.beginPath(); path(countries); g.fill();
+g.strokeStyle = 'rgba(201,165,107,.10)'; g.lineWidth = 1.2; g.beginPath(); path(topojson.mesh(world, world.objects.countries, (a, b) => a !== b)); g.stroke();
+g.strokeStyle = 'rgba(201,165,107,.22)'; g.lineWidth = 1.6; g.beginPath(); path(india); g.stroke();
+
+const r = rng(13), gauss = () => (r() + r() + r() + r() - 2) / 2;
+function light(lon, lat, size, a) {
+  const [x, y] = proj([lon, lat]);
+  const grd = g.createRadialGradient(x, y, 0, x, y, size);
+  grd.addColorStop(0, `rgba(255,214,150,${a})`); grd.addColorStop(1, 'rgba(255,170,90,0)');
+  g.fillStyle = grd; g.fillRect(x - size, y - size, size * 2, size * 2);
+}
+g.globalCompositeOperation = 'lighter';
+// Cities: [lon, lat, weight]
+const cities = [[77.2,28.6,10],[72.87,19.07,10],[88.36,22.57,8],[80.27,13.08,7],[77.59,12.97,8],[78.48,17.38,7],[72.57,23.02,6],[73.85,18.52,5],[75.79,26.91,4],[80.95,26.85,4],[80.33,26.45,3],[79.09,21.15,3],[75.86,22.72,3],[77.41,23.26,3],[85.14,25.59,3],[72.83,21.17,4],[73.18,22.31,2],[75.86,30.9,2],[76.78,30.73,2],[74.87,31.63,2],[82.97,25.32,2],[78.0,27.18,2],[91.74,26.14,2],[85.82,20.3,2],[83.22,17.69,2],[76.96,11.02,2],[76.27,9.93,3],[76.94,8.52,2],[78.12,9.93,2],[76.64,12.3,1.5],[74.86,12.91,1.5],[73.83,15.49,1.5],[73.71,24.58,1.5],[73.02,26.24,1.5],[81.63,21.25,1.5],[85.31,23.34,1.5],[90.41,23.81,8],[67.0,24.86,8],[74.35,31.52,7],[79.86,6.93,3],[85.32,27.7,2],[71.5,30.2,2],[73.05,33.68,3],[80.6,16.5,2],[79.0,10.8,2]];
+for (const [lon, lat, w] of cities) {
+  light(lon, lat, 3 + w * .6, .17);
+  for (let i = 0; i < w * 90; i++) light(lon + gauss() * .13 * Math.sqrt(w), lat + gauss() * .13 * Math.sqrt(w), 1.5 + r() * 2.5, .3 * r());
+}
+// Towns and villages: dense across the plains, lighter in the hills and desert.
+for (let i = 0; i < 60000; i++) {
+  const lon = 66 + r() * 27, lat = 6 + r() * 30;
+  if (!d3.geoContains(india, [lon, lat])) continue;
+  const plains = lat > 22 && lat < 30 && lon > 76 && lon < 89 ? 1 : .55;
+  const desert = lon < 74 && lat > 24 ? .3 : 1;
+  if (r() > plains * desert) continue;
+  light(lon, lat, 1.4 + r() * 2, .08 + r() * .22);
+}
+g.globalCompositeOperation = 'source-over';
+
+// --- Scene ---
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+renderer.setSize(1600, 900, false); renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#020406');
+const camera = new THREE.PerspectiveCamera(34, 16 / 9, .001, 50);
+
+const v3 = (lat, lon, h = 1) => {
+  const phi = (lon + 180) / 360 * Math.PI * 2, th = (90 - lat) / 180 * Math.PI;
+  return new THREE.Vector3(-Math.cos(phi) * Math.sin(th), Math.cos(th), Math.sin(phi) * Math.sin(th)).multiplyScalar(h);
+};
+const earthTex = new THREE.CanvasTexture(tex); earthTex.colorSpace = THREE.SRGBColorSpace; earthTex.anisotropy = 16;
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 256, 256), new THREE.MeshBasicMaterial({ map: earthTex })));
+
+// Atmosphere: a back-faced shell glowing at the limb.
+const atmo = new THREE.ShaderMaterial({
+  side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  vertexShader: 'varying vec3 n; varying vec3 p; void main(){ n = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.); p = mv.xyz; gl_Position = projectionMatrix*mv; }',
+  fragmentShader: 'varying vec3 n; varying vec3 p; void main(){ float f = pow(1. - abs(dot(n, normalize(-p))), 3.2); gl_FragColor = vec4(vec3(.35,.55,.75)*f*1.4 + vec3(.9,.6,.3)*pow(f,6.)*.6, f); }'
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.025, 128, 128), atmo));
+
+// Stars
+const sg = new THREE.BufferGeometry(), sp = [];
+for (let i = 0; i < 2500; i++) { const d = new THREE.Vector3(gauss(), gauss(), gauss()).normalize().multiplyScalar(20); sp.push(d.x, d.y, d.z); }
+sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: '#e9dcc8', size: .025, transparent: true, opacity: .8 })));
+
+// Camera: high over the Indian Ocean, looking north up the peninsula, horizon curving at the top.
+camera.position.copy(v3(-2, 83, 1.5));
+camera.up.copy(v3(90, 0, 1));
+camera.lookAt(v3(19.5, 78.5, .94));
+
+// The gold thread: a raised great-circle arc from Jaipur to Kochi, drawn three-quarters of the way.
+const jaipur = [26.91, 75.79], kochi = [9.93, 76.27];
+const A = v3(...jaipur), B = v3(...kochi), pts = [];
+const N = 200, drawn = .72;
+for (let i = 0; i <= N; i++) {
+  const t = i / N, p = new THREE.Vector3().copy(A).lerp(B, t).normalize();
+  pts.push(p.multiplyScalar(1 + Math.sin(t * Math.PI) * .07));
+}
+const curve = new THREE.CatmullRomCurve3(pts);
+const partial = new THREE.CatmullRomCurve3(curve.getPoints(300).slice(0, Math.floor(300 * drawn)));
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(partial, 300, .0016, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 1.0) })));
+// Faint dotted remainder of the route.
+const rest = curve.getPoints(300).slice(Math.floor(300 * drawn));
+const restG = new THREE.BufferGeometry().setFromPoints(rest.filter((_, i) => i % 6 === 0));
+scene.add(new THREE.Points(restG, new THREE.PointsMaterial({ color: '#C9A56B', size: .0035, transparent: true, opacity: .55 })));
+
+// The spark at the head of the thread, plus a soft halo at each home.
+function glowSprite(color, size, pos, strength = 1) {
+  const [c, x] = [document.createElement('canvas'), null]; c.width = c.height = 128; const cg = c.getContext('2d');
+  const grd = cg.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, `rgba(255,255,255,${strength})`); grd.addColorStop(.15, color); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  cg.fillStyle = grd; cg.fillRect(0, 0, 128, 128);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false }));
+  s.scale.setScalar(size); s.position.copy(pos); scene.add(s); return s;
+}
+glowSprite('rgba(255,200,120,.9)', .07, partial.getPoint(1));
+glowSprite('rgba(255,180,100,.5)', .16, partial.getPoint(1), .3);
+glowSprite('rgba(255,190,110,.7)', .05, A.clone().multiplyScalar(1.001));
+glowSprite('rgba(201,165,107,.35)', .035, B.clone().multiplyScalar(1.001), .4);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(1600, 900), .55, .45, .5));
+composer.addPass(new OutputPass());
+composer.render();
+
+// Place names.
+const stage = document.getElementById('stage');
+for (const [name, hi, ll, dx] of [['Jaipur', 'जयपुर', jaipur, 18], ['Kochi', 'कोच्चि', kochi, 18]]) {
+  const v = v3(...ll).project(camera), el = document.createElement('div');
+  el.className = 'place'; el.innerHTML = `${name}<span>${hi}</span>`;
+  el.style.left = ((v.x + 1) / 2 * 1600 + dx) + 'px'; el.style.top = ((1 - v.y) / 2 * 900 - 8) + 'px';
+  stage.appendChild(el);
+}
+window.__ready = true;
+</script></body></html>

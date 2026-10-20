@@ -1,0 +1,16 @@
+/* Aamantran Atelier — Palace Parlour tokens. Source of truth: assets/tokens.json */
+@font-face{font-family:'Gilda Display';src:url('fonts/GildaDisplay-Regular.ttf')}
+@font-face{font-family:'Pinyon Script';src:url('fonts/PinyonScript-Regular.ttf')}
+@font-face{font-family:'Jost';src:url('fonts/Jost-Variable.ttf');font-weight:100 900}
+@font-face{font-family:'Tiro Devanagari Hindi';src:url('fonts/TiroDevanagariHindi-Regular.ttf')}
+:root{
+  --maroon:#5C1A1B; --bottle-green:#1F3A2E; --blush:#E6CFC6; --linen:#F2E9E1;
+  --gold:#C9A56B; --gold-deep:#7A5C2E; --cocoa:#5A4636; --taupe:#A08C7D; --rose:#9E5A5C;
+  --ink:#2B1F1A; --bloom:#7A1F26; --leaf:#2F5240; --ink-muted:#5A4636; --on-maroon:#F2E9E1; --hairline:#D2BFB5;
+  --font-display:'Gilda Display', Didot, Georgia, serif;
+  --font-script:'Pinyon Script', 'Snell Roundhand', cursive;
+  --font-sans:'Jost', 'Century Gothic', system-ui, sans-serif;
+  --font-deva:'Tiro Devanagari Hindi', 'Noto Serif Devanagari', serif;
+  --space-1:4px; --space-2:8px; --space-4:16px; --space-6:24px; --space-10:40px; --space-16:64px;
+  --shadow-tag:0 2px 4px rgba(43,31,26,.12), 0 12px 32px rgba(43,31,26,.10);
+}

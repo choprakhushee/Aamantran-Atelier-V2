@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Parat Dar Parat — frame</title>
+<link rel="stylesheet" href="../assets/frame.css">
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+<style>
+  body{background:#0d0908}
+  .tag{position:absolute;text-shadow:0 1px 6px #000;font:400 11px/1 var(--font-sans);letter-spacing:.32em;text-transform:uppercase;color:var(--linen);white-space:nowrap;transform:translate(-100%,-50%);padding-right:14px}
+  .tag::after{content:'';position:absolute;right:0;top:50%;width:8px;height:8px;margin-top:-4px;border:1px solid var(--gold);border-radius:50%}
+  .tag span{display:block;margin-top:7px;font-size:10px;letter-spacing:.18em;color:var(--taupe);text-transform:none;font-style:italic}
+</style></head>
+<body><div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="vignette"></div><div class="grain"></div>
+  <div class="line" style="top:64px"><div class="kicker">Aamantran Atelier</div>
+    <div class="say">Every second is made of <em>dozens of layers.</em></div></div>
+  <div class="slate"><b>04 · Parat Dar Parat</b> &nbsp;—&nbsp; shot 2 · the invitation comes apart</div>
+  <div class="scrub"><i style="width:22%"></i></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { C, canvas, rng, archPath, skyline, garlands, filigree, inviteStill, loadImage } from '../assets/art.js';
+
+await document.fonts.load('118px "Pinyon Script"'); await document.fonts.load('40px "Tiro Devanagari Hindi"'); await document.fonts.load('300 30px Jost');
+const W = 900, H = 1600;
+
+// --- Each layer of the invite, drawn on its own transparent canvas ---
+const layers = [];
+function layer(label, note, draw, opts = {}) { const [c, g] = canvas(W, H); draw(g); layers.push({ c, label, note, ...opts }); }
+
+layer('Sky & moon', 'painted', g => {
+  const s = g.createLinearGradient(0, 0, 0, H); s.addColorStop(0, '#2a0d10'); s.addColorStop(.6, '#5C1A1B'); s.addColorStop(1, '#9E5A5C');
+  g.fillStyle = s; g.fillRect(0, 0, W, H);
+  const r = rng(5); g.fillStyle = '#F2E9E1';
+  for (let i = 0; i < 120; i++) { g.globalAlpha = r() * .8; g.beginPath(); g.arc(r() * W, r() * H * .6, r() * 1.8, 0, 7); g.fill(); }
+  g.globalAlpha = 1; g.beginPath(); g.arc(W * .72, H * .16, 46, 0, 7); g.fill();
+});
+layer('Architecture', 'hand-drawn chhatris', g => { g.fillStyle = '#3a1213'; skyline(g, W, H * .68, 70); });
+layer('Arch frame', 'Mughal cusped arch', g => {
+  g.fillStyle = C.green; g.beginPath(); g.rect(0, 0, W, H); archPath(g, 110, H - 90, W - 220, H * .78); g.fill('evenodd');
+  g.strokeStyle = C.gold; g.lineWidth = 4; g.beginPath(); archPath(g, 110, H - 90, W - 220, H * .78); g.stroke();
+});
+layer('Florals', 'marigold torans', g => garlands(g, W, H));
+layer('Calligraphy', 'names, set by hand', g => {
+  g.textAlign = 'center'; g.font = '118px "Pinyon Script"'; g.fillStyle = C.linen; g.fillText('Ananya & Kabir', W / 2, H * .46);
+  g.font = '300 30px Jost'; g.letterSpacing = '8px'; g.fillStyle = C.blush; g.fillText('14 · 02 · 2027', W / 2, H * .52);
+});
+layer('Devanagari', 'शुभ विवाह', g => { g.textAlign = 'center'; g.font = '44px "Tiro Devanagari Hindi"'; g.fillStyle = C.gold; g.fillText('शुभ विवाह', W / 2, H * .36); });
+layer('Gold foil', 'filigree & rules', g => filigree(g, W, H, 46), { emissive: true });
+layer('Light', 'lamp glow, animated', g => {
+  const gl = g.createRadialGradient(W / 2, H * .45, 10, W / 2, H * .45, W * .55);
+  gl.addColorStop(0, 'rgba(255,200,130,.38)'); gl.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+}, { additive: true });
+layer('Particles', 'gold dust, 4,000', g => {
+  const r = rng(9); for (let i = 0; i < 420; i++) { g.fillStyle = `rgba(232,200,140,${r()})`; g.beginPath(); g.arc(r() * W, r() * H, r() * 3 + .5, 0, 7); g.fill(); }
+}, { additive: true });
+
+// --- Three.js scene ---
+const cv = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setSize(1600, 900, false); renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#0d0908'); scene.fog = new THREE.Fog('#0d0908', 14, 30);
+const camera = new THREE.PerspectiveCamera(30, 16 / 9, .1, 100);
+camera.position.set(-9.6, 3.4, 9.4); camera.lookAt(.2, .55, -1.0);
+
+scene.add(new THREE.AmbientLight('#ffe9d2', 1.4));
+const key = new THREE.PointLight('#ffb978', 60, 30); key.position.set(-2, 3, 6); scene.add(key);
+
+// The phone the layers came out of, at the back of the stack.
+const pw = 2.25, ph = 4.0;
+const phone = new THREE.Mesh(new RoundedBoxGeometry(pw + .16, ph + .2, .16, 6, .16), new THREE.MeshStandardMaterial({ color: '#141010', metalness: .7, roughness: .35 }));
+const still = await inviteStill();
+const screenTex = new THREE.CanvasTexture(still); screenTex.colorSpace = THREE.SRGBColorSpace;
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), new THREE.MeshBasicMaterial({ map: screenTex, color: '#8a7a70' }));
+screen.position.z = .085; phone.add(screen);
+const stackStart = new THREE.Vector3(.9, 0, -4.6), stackStep = new THREE.Vector3(-.06, .03, 1.02);
+phone.position.copy(stackStart).add(new THREE.Vector3(.1, 0, -1.1)); scene.add(phone);
+
+// Layers fanned out along a diagonal, each slightly enlarged as it nears camera.
+const anchors = [];
+layers.forEach((L, i) => {
+  const tex = new THREE.CanvasTexture(L.c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: !L.additive, side: THREE.DoubleSide,
+    blending: L.additive ? THREE.AdditiveBlending : THREE.NormalBlending, opacity: L.additive ? .9 : 1 });
+  if (L.emissive) mat.color = new THREE.Color(1.6, 1.4, 1.1);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat);
+  m.position.copy(stackStart).addScaledVector(stackStep, i);
+  m.position.y += Math.sin(i * 1.3) * .08;
+  m.rotation.y = .04 - i * .01; m.rotation.z = Math.sin(i) * .012;
+  scene.add(m);
+  // Thin gold edge so each layer reads as a sheet of glass.
+  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(pw, ph)), new THREE.LineBasicMaterial({ color: '#C9A56B', transparent: true, opacity: .35 }));
+  m.add(edge);
+  anchors.push({ obj: m, label: L.label, note: L.note });
+});
+
+// Floating dust in the room.
+const dust = new THREE.BufferGeometry(), r = rng(21), pts = [];
+for (let i = 0; i < 900; i++) pts.push((r() - .5) * 22, (r() - .5) * 10, (r() - .5) * 18);
+dust.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+scene.add(new THREE.Points(dust, new THREE.PointsMaterial({ color: '#e8c48c', size: .03, transparent: true, opacity: .6 })));
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(1600, 900), .55, .6, .62));
+composer.addPass(new OutputPass());
+composer.render();
+
+// Labels for a few layers, placed at the top-left corner of each sheet.
+const stage = document.getElementById('stage');
+[0, 2, 3, 4, 6, 7].forEach(i => {
+  const a = anchors[i], v = new THREE.Vector3(-pw / 2, -ph / 2 + .1, 0).applyMatrix4(a.obj.matrixWorld).project(camera);
+  const t = document.createElement('div'); t.className = 'tag';
+  t.innerHTML = `${a.label}<span>${a.note}</span>`;
+  t.style.left = ((v.x + 1) / 2 * 1600 - 6) + 'px'; t.style.top = ((1 - v.y) / 2 * 900) + 'px';
+  stage.appendChild(t);
+});
+window.__ready = true;
+</script></body></html>

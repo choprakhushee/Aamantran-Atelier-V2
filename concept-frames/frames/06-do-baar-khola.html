@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Do Baar Khola — frame</title>
+<link rel="stylesheet" href="../assets/frame.css">
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+<style>
+  /* The phone's glass edge we have just passed through, still framing the shot. */
+  .glass{position:absolute;inset:-60px;border-radius:150px;box-shadow:inset 0 0 0 64px #050506, inset 0 0 0 66px rgba(255,255,255,.10), inset 0 0 140px 90px rgba(0,0,0,.85);pointer-events:none}
+  .glass::after{content:'';position:absolute;left:12%;top:58px;width:34%;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);filter:blur(1px)}
+</style></head>
+<body><div class="stage">
+  <canvas id="c"></canvas>
+  <div style="position:absolute;inset:auto 0 0 0;height:340px;background:linear-gradient(transparent,rgba(5,5,6,.85))"></div>
+  <div class="grain"></div>
+  <div class="glass"></div>
+  <div class="line" style="top:auto;bottom:112px">
+    <div class="kicker">Most are glanced at.</div>
+    <div class="say">One is <em>opened twice.</em></div>
+  </div>
+  <div class="slate" style="left:96px;bottom:40px"><b>06 · Do Baar Khola</b> &nbsp;—&nbsp; shot 3 · through the glass</div>
+  <div class="scrub" style="right:96px;bottom:46px"><i style="width:33%"></i></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { canvas, rng, inviteStill } from '../assets/art.js';
+
+await Promise.all(['118px "Pinyon Script"', '40px "Tiro Devanagari Hindi"', '300 30px Jost', '400 30px Jost'].map(f => document.fonts.load(f)));
+const r = rng(77);
+const tex = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+
+// --- The ordinary forwards: grey bubbles, tired JPEG cards. Our own chat styling, no app branding. ---
+const lines = ['Good morning', 'Forwarded as received', 'Pls share with all', 'Save the date!! do come', 'Happy Dhanteras to all', 'Ok', 'Noted', 'Card attached', 'Reminder: Sunday 7pm', 'Forwarded', 'Jai Shri Krishna', 'Wedding card pdf', 'Thank you ji', 'Will try to come'];
+function bubble(text, out = r() > .5) {
+  const pad = 34, [m, mg] = canvas(10, 10); mg.font = '400 34px Jost';
+  const w = Math.max(220, mg.measureText(text).width + pad * 2 + 70), h = 110;
+  const [c, g] = canvas(w, h);
+  g.fillStyle = out ? '#34403a' : '#2b2c2f'; g.beginPath(); g.roundRect(0, 0, w, h, 26); g.fill();
+  g.font = '400 34px Jost'; g.fillStyle = '#c9c9c4'; g.fillText(text, pad, 62);
+  g.font = '300 20px Jost'; g.fillStyle = '#85857f'; g.fillText(`${8 + (r() * 3 | 0)}:${String(r() * 60 | 0).padStart(2, '0')}`, w - 74, 94);
+  return [c, w / h];
+}
+function staleCard() { // a low-res, over-compressed card forward
+  const [s, sg] = canvas(24, 32);
+  sg.fillStyle = ['#c8a24a', '#b33a3a', '#e3d3b0', '#8a4a8a'][r() * 4 | 0]; sg.fillRect(0, 0, 24, 32);
+  sg.fillStyle = 'rgba(255,255,255,.6)'; sg.fillRect(4, 10, 16, 3); sg.fillRect(6, 16, 12, 2); sg.fillStyle = 'rgba(0,0,0,.3)'; sg.fillRect(0, 26, 24, 6);
+  const [c, g] = canvas(300, 420); g.fillStyle = '#2b2c2f'; g.beginPath(); g.roundRect(0, 0, 300, 420, 22); g.fill();
+  g.imageSmoothingEnabled = false; g.filter = 'saturate(.25) brightness(.55) blur(1px)'; g.drawImage(s, 14, 14, 272, 362);
+  g.filter = 'none'; g.font = '300 20px Jost'; g.fillStyle = '#85857f'; g.fillText('IMG-2026-WA0042.jpg', 18, 404);
+  return [c, 300 / 420];
+}
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+renderer.setSize(1600, 900, false); renderer.setPixelRatio(1); renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#07080a'); scene.fog = new THREE.FogExp2('#07080a', .045);
+const camera = new THREE.PerspectiveCamera(42, 16 / 9, .1, 100); camera.position.set(0, 0, 6); camera.lookAt(0, .15, 0);
+
+// Bubbles drifting in a loose tunnel around the camera's path.
+for (let i = 0; i < 70; i++) {
+  const [c, aspect] = r() > .78 ? staleCard() : bubble(lines[i % lines.length]);
+  const h = aspect < 1 ? .9 : .32, m = new THREE.Mesh(new THREE.PlaneGeometry(h * aspect, h), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, opacity: .9 }));
+  const z = 4.5 - r() * 26, a = r() * Math.PI * 2, rad = 1.7 + r() * 2.6;
+  m.position.set(Math.cos(a) * rad * 1.5, Math.sin(a) * rad * .85, z);
+  m.rotation.set((r() - .5) * .5, (r() - .5) * .9, (r() - .5) * .35);
+  scene.add(m);
+}
+
+// The one message: the invitation, warm and lit from within.
+const still = await inviteStill();
+const [ic, ig] = canvas(980, 1820);
+ig.fillStyle = '#1c2622'; ig.beginPath(); ig.roundRect(0, 0, 980, 1820, 44); ig.fill();
+ig.save(); ig.beginPath(); ig.roundRect(40, 40, 900, 1600, 28); ig.clip(); ig.drawImage(still, 40, 40); ig.restore();
+ig.fillStyle = 'rgba(242,233,225,.92)'; ig.beginPath(); ig.arc(490, 1180, 70, 0, 7); ig.fill();
+ig.fillStyle = '#5C1A1B'; ig.beginPath(); ig.moveTo(470, 1145); ig.lineTo(470, 1215); ig.lineTo(528, 1180); ig.closePath(); ig.fill();
+ig.font = '400 40px Jost'; ig.fillStyle = '#E6CFC6'; ig.fillText('Ananya & Kabir — our invitation', 50, 1710);
+ig.font = '300 30px Jost'; ig.fillStyle = '#A08C7D'; ig.fillText('0:42  ·  tap to watch', 50, 1770);
+const hero = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35 * 1820 / 980), new THREE.MeshBasicMaterial({ map: tex(ic), color: new THREE.Color(1.25, 1.18, 1.1) }));
+hero.position.set(0, .2, 0); hero.rotation.set(0, -.08, .015); scene.add(hero);
+// Warm halo behind it.
+const [hc, hg] = canvas(256, 256); const grd = hg.createRadialGradient(128, 128, 0, 128, 128, 128);
+grd.addColorStop(0, 'rgba(255,190,120,.22)'); grd.addColorStop(.35, 'rgba(255,170,90,.07)'); grd.addColorStop(1, 'rgba(255,170,90,0)'); hg.fillStyle = grd; hg.fillRect(0, 0, 256, 256);
+const halo = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 5.5), new THREE.MeshBasicMaterial({ map: tex(hc), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+halo.position.set(0, .2, -.6); scene.add(halo);
+// Light dust streaming past (we are moving forward).
+const pg = new THREE.BufferGeometry(), pp = [];
+for (let i = 0; i < 1500; i++) pp.push((r() - .5) * 14, (r() - .5) * 8, 5 - r() * 25);
+pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3));
+scene.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: '#e8c48c', size: .02, transparent: true, opacity: .6 })));
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new BokehPass(scene, camera, { focus: 6, aperture: .006, maxblur: .014 }));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(1600, 900), .55, .6, .6));
+composer.addPass(new OutputPass());
+composer.render();
+window.__ready = true;
+</script></body></html>

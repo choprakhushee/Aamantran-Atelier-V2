@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Ek Pankhudi — frame</title>
+<link rel="stylesheet" href="../assets/frame.css">
+<script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js","three/addons/":"../node_modules/three/examples/jsm/"}}</script>
+</head>
+<body><div class="stage">
+  <canvas id="c"></canvas>
+  <div class="vignette"></div><div class="grain"></div>
+  <div class="line" style="left:auto;right:120px;top:330px;width:520px;text-align:left">
+    <div class="kicker" style="padding-left:0">Aamantran Atelier</div>
+    <div class="say" style="font-size:38px">Every celebration begins<br>with <em>a single gesture.</em></div>
+  </div>
+  <div class="slate"><b>01 · Ek Pankhudi</b> &nbsp;—&nbsp; shot 2 · the marigold opens; the camera chooses one petal</div>
+  <div class="scrub"><i style="width:9%"></i></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { rng } from '../assets/art.js';
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+renderer.setSize(1600, 900, false); renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#0a0605');
+const camera = new THREE.PerspectiveCamera(32, 16 / 9, .1, 100);
+camera.position.set(0, .5, 8.6); camera.lookAt(.7, 0, 0);
+
+// --- One marigold petal: a frilled, cupped fan. ---
+function petalGeometry(r, len = 1, width = .8) {
+  const g = new THREE.PlaneGeometry(1, 1, 28, 14), p = g.attributes.position, col = [];
+  const freq = 5 + Math.floor(r() * 4), phase = r() * 6;
+  for (let i = 0; i < p.count; i++) {
+    const u = p.getX(i) + .5, v = p.getY(i) + .5;          // u across, v along length
+    const half = (u - .5) * width * (.25 + .75 * Math.sin(Math.min(v * 1.25, 1) * Math.PI / 2));
+    const ruffle = Math.sin(u * Math.PI * freq + phase) * .07 * Math.pow(v, 2.2);
+    const cup = -Math.pow(u - .5, 2) * .9 * v - v * v * .25;
+    const tip = v * len - Math.max(0, Math.abs(u - .5) - .3) * .3 * v;   // softly scalloped end
+    p.setXYZ(i, half, tip, cup + ruffle);
+    const c = new THREE.Color().setHSL(.045 + v * .04 + (r() - .5) * .006, .95, .2 + v * .3);
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+  return g;
+}
+const mat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: .62, metalness: 0 });
+const r = rng(42);
+
+// --- The flower head: petals on a fibonacci sphere, densest at the top. ---
+const flower = new THREE.Group(); scene.add(flower);
+const N = 520, up = new THREE.Vector3(0, 1, 0);
+for (let i = 0; i < N; i++) {
+  const y = 1 - (i / (N - 1)) * 1.55, rad = Math.sqrt(Math.max(0, 1 - y * y)), th = i * 2.39996;
+  const dir = new THREE.Vector3(Math.cos(th) * rad, y, Math.sin(th) * rad).normalize();
+  const m = new THREE.Mesh(petalGeometry(r, .9 + r() * .35, .7 + r() * .3), mat);
+  m.position.copy(dir).multiplyScalar(.28 + r() * .1);
+  m.quaternion.setFromUnitVectors(up, dir);
+  m.rotateY(r() * Math.PI * 2); m.rotateX((r() - .5) * .5);
+  m.castShadow = m.receiveShadow = true;
+  flower.add(m);
+}
+flower.position.set(-1.5, -.1, 0); flower.rotation.set(.35, .4, -.15);
+
+// --- Petals breaking free and drifting toward camera-right. ---
+const loose = new THREE.Group(); scene.add(loose);
+for (let i = 0; i < 16; i++) {
+  const t = i / 16, m = new THREE.Mesh(petalGeometry(r, .95, .85), mat);
+  m.position.set(-.1 + t * 4.4 + (r() - .5) * .5, .7 + Math.sin(t * 2.6) * 1.0 + (r() - .5) * .5, (r() - .5) * 2.4);
+  m.rotation.set(r() * 6, r() * 6, r() * 6); m.scale.setScalar(.32 + r() * .2);
+  loose.add(m);
+}
+// The chosen petal: close to camera, in the light.
+const hero = new THREE.Mesh(petalGeometry(rng(3), 1, .9), mat);
+hero.position.set(.75, -.85, 3.0); hero.rotation.set(-.9, .6, 2.3); hero.scale.setScalar(.55); scene.add(hero);
+
+// --- Light: warm key, hot rim from behind, cool fill. ---
+scene.add(new THREE.HemisphereLight('#ffcf9e', '#1a0c08', .5));
+const key = new THREE.SpotLight('#ffe2c0', 240, 30, .55, .6); key.position.set(-5, 6, 5); key.target = flower; key.castShadow = true; scene.add(key);
+const rim = new THREE.PointLight('#ff9a3c', 160, 20); rim.position.set(1.2, 2.2, -3.2); scene.add(rim);
+const fill = new THREE.PointLight('#7a5ccf', 14, 20); fill.position.set(4, -2, 4); scene.add(fill);
+
+// --- Dust motes and pollen in the light shaft. ---
+const dg = new THREE.BufferGeometry(), dp = [];
+for (let i = 0; i < 1400; i++) dp.push((r() - .5) * 14, (r() - .5) * 8, (r() - .5) * 8);
+dg.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3));
+scene.add(new THREE.Points(dg, new THREE.PointsMaterial({ color: '#ffd59a', size: .016, transparent: true, opacity: .75 })));
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new BokehPass(scene, camera, { focus: 8.4, aperture: .0035, maxblur: .012 }));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(1600, 900), .45, .7, .55));
+composer.addPass(new OutputPass());
+composer.render();
+window.__ready = true;
+</script></body></html>

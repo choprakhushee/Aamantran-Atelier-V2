@@ -1,0 +1,30 @@
+/* Shared styling for concept frames: brand fonts, film overlay text, grain and vignette. */
+@import url('tokens.css');
+@font-face{font-family:'Gilda Display';src:url('fonts/GildaDisplay-Regular.ttf')}
+@font-face{font-family:'Pinyon Script';src:url('fonts/PinyonScript-Regular.ttf')}
+@font-face{font-family:'Jost';src:url('fonts/Jost-Variable.ttf');font-weight:100 900}
+@font-face{font-family:'Tiro Devanagari Hindi';src:url('fonts/TiroDevanagariHindi-Regular.ttf')}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1600px;height:900px;overflow:hidden;background:#0b0807}
+.stage{position:relative;width:1600px;height:900px;overflow:hidden}
+.stage canvas,.stage svg.full{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* Film grain + vignette sit above the scene, below the text. */
+.grain{position:absolute;inset:-50%;pointer-events:none;opacity:.09;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,.55) 100%)}
+
+/* On-screen film line. */
+.line{position:absolute;color:var(--linen);text-align:center;left:0;right:0}
+.line .kicker{font:400 13px/1 var(--font-sans);letter-spacing:.42em;padding-left:.42em;text-transform:uppercase;opacity:.75}
+.line .say{font:300 34px/1.35 var(--font-sans);letter-spacing:.01em;margin-top:18px}
+.line .say em{font-family:var(--font-display);font-style:normal}
+.line .title{font:400 44px/1 var(--font-display);letter-spacing:.2em;padding-left:.2em;text-transform:uppercase}
+.line .script{font:400 64px/1.1 var(--font-script)}
+
+/* Slate: which concept and shot this frame is. */
+.slate{position:absolute;left:40px;bottom:34px;font:400 12px/1.6 var(--font-sans);letter-spacing:.28em;text-transform:uppercase;color:rgba(242,233,225,.55)}
+.slate b{font-weight:500;color:rgba(242,233,225,.85)}
+.scrub{position:absolute;right:40px;bottom:40px;width:180px;height:1px;background:rgba(242,233,225,.25)}
+.scrub i{position:absolute;left:0;top:-1px;height:3px;background:var(--gold)}

@@ -1,0 +1,1 @@
+Gilda Display, Pinyon Script, Jost and Tiro Devanagari Hindi are from Google Fonts under the SIL Open Font License 1.1 — free to use, embed and bundle; not to be sold on their own. https://openfontlicense.org
